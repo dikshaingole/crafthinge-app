@@ -1,0 +1,11 @@
+package com.crafthinge.payment;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PaymentRepository extends JpaRepository<Payment, UUID> {
+    Optional<Payment> findByOrderIdAndStatus(Long orderId, String status);
+    List<Payment> findByOrderIdOrderByCreatedAtDesc(Long orderId);
+}

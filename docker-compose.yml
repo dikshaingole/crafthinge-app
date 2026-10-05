@@ -1,0 +1,122 @@
+# Runs the whole CraftHinge platform on your laptop. No Azure needed.
+#
+#   docker compose up --build        then open http://localhost:8080
+#
+# Mapping to Azure (later phases):
+#   postgres  -> Azure Database for PostgreSQL (one server, 7 databases)
+#   gateway   -> Application Gateway + Kubernetes Ingress
+#   EVENTS_MODE=http -> EVENTS_MODE=servicebus (Azure Service Bus)
+#   JWT_SECRET env   -> Azure Key Vault secret
+name: crafthinge
+
+x-java-service: &java-service
+  restart: on-failure
+  mem_limit: 512m          # like a Kubernetes memory limit; the JVM sizes its heap from it
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+x-common-env: &common-env
+  # Local-only secret. In AKS this comes from Key Vault, never from a file in Git.
+  JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me-0123456789abcdef}
+  DB_USERNAME: crafthinge
+  DB_PASSWORD: crafthinge
+  EVENTS_MODE: http
+  LOG_LEVEL: INFO
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: crafthinge
+      POSTGRES_PASSWORD: crafthinge
+    volumes:
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"        # optional: lets you inspect data with a DB client
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crafthinge"]
+      interval: 5s
+      retries: 20
+
+  user-service:
+    <<: *java-service
+    build: { context: ., dockerfile: user-service/Dockerfile }
+    image: crafthinge/user-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/users
+
+  restaurant-service:
+    <<: *java-service
+    build: { context: ., dockerfile: restaurant-service/Dockerfile }
+    image: crafthinge/restaurant-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/restaurants
+
+  food-service:
+    <<: *java-service
+    build: { context: ., dockerfile: food-service/Dockerfile }
+    image: crafthinge/food-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/menu
+
+  cart-service:
+    <<: *java-service
+    build: { context: ., dockerfile: cart-service/Dockerfile }
+    image: crafthinge/cart-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/carts
+
+  order-service:
+    <<: *java-service
+    build: { context: ., dockerfile: order-service/Dockerfile }
+    image: crafthinge/order-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/orders
+      EVENT_SUBSCRIBERS: http://notification-service:8080,http://delivery-service:8080
+
+  payment-service:
+    <<: *java-service
+    build: { context: ., dockerfile: payment-service/Dockerfile }
+    image: crafthinge/payment-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/payments
+
+  delivery-service:
+    <<: *java-service
+    build: { context: ., dockerfile: delivery-service/Dockerfile }
+    image: crafthinge/delivery-service:local
+    environment:
+      <<: *common-env
+      DB_URL: jdbc:postgresql://postgres:5432/deliveries
+
+  notification-service:
+    <<: *java-service
+    build: { context: ., dockerfile: notification-service/Dockerfile }
+    image: crafthinge/notification-service:local
+    environment:
+      <<: *common-env
+
+  frontend:
+    build: { context: ./frontend }
+    image: crafthinge/frontend:local
+    restart: on-failure
+
+  gateway:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./docker/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:8080"
+    depends_on: [frontend, user-service, restaurant-service, food-service, cart-service,
+                 order-service, payment-service, delivery-service, notification-service]
+
+volumes:
+  pgdata:

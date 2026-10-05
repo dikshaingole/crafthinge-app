@@ -1,0 +1,6 @@
+# Replace with your GitHub teams/users. A CODEOWNER review is required on every PR.
+*                         @crafthinge/platform
+/user-service/            @crafthinge/identity-team
+/order-service/           @crafthinge/orders-team
+/payment-service/         @crafthinge/payments-team
+/frontend/                @crafthinge/web-team

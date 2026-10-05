@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Parent POM for all CraftHinge services (Maven multi-module monorepo).
+  - common-lib: shared security / error handling / events code
+  - each *-service: an independently built & deployed Spring Boot app
+  Build one service:  mvn -pl order-service -am package
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.6</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.crafthinge</groupId>
+  <artifactId>crafthinge-parent</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>CraftHinge</name>
+
+  <modules>
+    <module>common-lib</module>
+    <module>user-service</module>
+    <module>restaurant-service</module>
+    <module>food-service</module>
+    <module>cart-service</module>
+    <module>order-service</module>
+    <module>payment-service</module>
+    <module>delivery-service</module>
+    <module>notification-service</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <azure-identity.version>1.13.0</azure-identity.version>
+    <azure-servicebus.version>7.17.0</azure-servicebus.version>
+    <jacoco.version>0.8.12</jacoco.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.crafthinge</groupId>
+        <artifactId>common-lib</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.azure</groupId>
+        <artifactId>azure-identity</artifactId>
+        <version>${azure-identity.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.azure</groupId>
+        <artifactId>azure-messaging-servicebus</artifactId>
+        <version>${azure-servicebus.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- Coverage report consumed by SonarQube in the CI pipeline (Phase 4) -->
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>${jacoco.version}</version>
+          <executions>
+            <execution><goals><goal>prepare-agent</goal></goals></execution>
+            <execution><id>report</id><phase>test</phase><goals><goal>report</goal></goals></execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

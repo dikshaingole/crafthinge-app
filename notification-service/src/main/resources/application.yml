@@ -1,0 +1,48 @@
+# Defaults are for running on a laptop. Every value that differs per
+# environment is an env var, set by docker-compose locally and by the Helm
+# chart (ConfigMap / Key Vault secret) in AKS.
+server:
+  port: 8080
+  shutdown: graceful          # finish in-flight requests when Kubernetes stops the pod
+
+spring:
+  application:
+    name: notification-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true
+  http:
+    client:
+      connect-timeout: 2s
+      read-timeout: 5s
+
+crafthinge:
+  security:
+    jwt-secret: ${JWT_SECRET}
+  events:
+    mode: ${EVENTS_MODE:http}   # http (local) | servicebus (Azure)
+    servicebus:
+      namespace: ${SERVICEBUS_NAMESPACE:}   # e.g. sb-crafthinge-dev-ab12.servicebus.windows.net
+      topic: order-events
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true          # /actuator/health/liveness and /readiness
+      group:
+        readiness:
+          include: readinessState
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
